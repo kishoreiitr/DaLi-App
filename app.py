@@ -6,19 +6,13 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 
 st.set_page_config(page_title="Lineage Generator", layout="wide")
 
-# Function to write Excel with basic autofilter and no styling
+# Utility function to write Excel
 def write_clean_excel(df):
     wb = Workbook()
     ws = wb.active
-
-    # Write DataFrame to worksheet
     for r in dataframe_to_rows(df, index=False, header=True):
         ws.append(r)
-
-    # Apply autofilter to header row
     ws.auto_filter.ref = ws.dimensions
-
-    # Save to BytesIO
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
@@ -115,7 +109,7 @@ def generate_governance_lineage(file):
     df_output = pd.DataFrame(lineage_records)
     return write_clean_excel(df_output)
 
-# Dynamic Authorization Lineage Logic
+# Dynamic Authorization Logic
 def generate_auth_lineage(file):
     xls = pd.ExcelFile(file, engine="openpyxl")
     df_policy = pd.read_excel(xls, sheet_name="POLICY", engine="openpyxl")
@@ -147,6 +141,53 @@ def generate_auth_lineage(file):
     df_output = pd.DataFrame(lineage_records)
     return write_clean_excel(df_output)
 
+# Keyword Analysis Logic with 227 keywords inline
+def generate_keyword_analysis(file):
+    keywords = [
+        "GetEntityBusinessConditionScore", "ContextsHave", "IsContextChanged", "GetContextPath", "GetEntityId",
+        "GetEntityIds", "GetEntityType", "GetEntityVersion", "GetEntityName", "GetEntityProperty",
+        "GetCurrentWorkflowAssignedUser", "GetLocalesOfChangedData", "GetCurrentWorkflowStep", "GetAllContexts",
+        "GetChildContexts", "HasContextLinks", "HaveErrorsInContext", "IsEntityDeleted", "IsEntityInWorkflow",
+        "IsEntityInWorkflowInContext", "SetEntityProperty", "GetConfigKeyValue", "GenerateUniqueId", "GetWeekOfYear",
+        "AttributesHaveErrorsInContext", "GetAttributeValue", "GetAttributeValueFromContext",
+        "GetAttributeValuesFromContext", "GetAttributeValueWithDefault", "GetAttributeValues",
+        "GetAttributeValuesWithDefault", "GetAttributeValuesWithDefaultFromContext",
+        "GetAttributeValueWithDefaultFromContext", "GetAttributeValueReferenceId", "GetAttributeValueReferenceIds",
+        "GetAttributeValueProperty", "GetEntityAttributeValuesById", "GetEntityAttributeValueById",
+        "GetEntityAttributeValueByIdInContext", "GetNestedAttributeComputedValue", "GetNestedAttributeValues",
+        "GetNestedAttributeRow", "GetNestedAttributeRows", "DeleteNestedAttributeRows", "GetEntityNestedAttributeRow",
+        "GetEntityNestedAttributeRows", "GetNestedAttributeValueReferenceID", "GetChildAttributefromNestedRowString",
+        "GetRelatedEntityIdByAttributeValue", "GetRelatedEntityIdByAttributeValueFromContext",
+        "InitiateExportForDeletedEntityInContextAndLocale", "InvokeWorkflow", "InvokeWorkflowInContext",
+        "ResumeWorkflow", "ResumeWorkflowInContext", "ScheduleEntityForExport", "ScheduleEntityForGraphProcessing",
+        "ScheduleWhereUsedEntitiesForGraphProcessing", "SendEntityForGraphProcessing",
+        "SendWhereUsedEntitiesForGraphProcessing", "SendEmail", "CreateSnapshot", "RestoreSnapshot",
+        "ExportApprovedVersion", "CreateAndExportApprovedVersion", "CreateEntity", "DeleteEntity",
+        "GetBusinessConditionStatus", "GetEntityBusinessConditionStatus", "ManageAddress", "GetWorkflowComment",
+        "GetEntityCurrentWorkflowStep", "EndWorkflow", "GenerateVariants", "ScheduleOrSendEntityForGraphProcessing",
+        "SetEntityAttributeValue", "SetEntityAttributeValueForContext", "AddEntityNestedAttributeRow",
+        "SetEntityDeeplyNestedAttributeJSON", "CheckIfAnyWhereUsedEntityAttributeValueIs",
+        "GetChangedNestedAttributeRows", "GetDeletedNestedAttributeRows", "ResumeRelatedEntityWorkflow",
+        "ScheduleRelatedEntitiesForGraphProcessing", "SendRelatedEntitiesForGraphProcessing",
+        "SetRelatedEntityAttributeValue", "SetRelatedEntityAttributeValueForContext", "WhereUsedRelationshipsCountInContext",
+        "GetConnectorState", "SetConnectorState", "InvokeConnectorState", "AttributeInContext", "SortedAttributeValues",
+        "SortedAttributeValuesFromContext", "URLEncode", "GetApplicationURL", "CurrentWorkflowStepStartDate",
+        "ContextType", "ContextPath"
+    ]
+
+    xls = pd.ExcelFile(file, engine="openpyxl")
+    df_rules = pd.read_excel(xls, sheet_name="BUSINESS RULES", engine="openpyxl")
+    df_rules = df_rules[df_rules["IS ENABLED?"] == "Yes"]
+
+    results = []
+    for keyword in keywords:
+        count = df_rules["DEFINITION"].apply(lambda x: keyword in str(x)).sum()
+        if count > 0:
+            results.append({"Keyword": keyword, "Count of Matching Rules": count})
+
+    df_output = pd.DataFrame(results).sort_values(by="Count of Matching Rules", ascending=False)
+    return write_clean_excel(df_output)
+
 # UI Layout
 col1, col2 = st.columns(2)
 
@@ -157,6 +198,9 @@ with col1:
     if gov_file:
         output = generate_governance_lineage(gov_file)
         st.download_button("Download Governance Lineage", data=output, file_name="Goverance_rules_lineage_output.xlsx")
+
+        keyword_output = generate_keyword_analysis(gov_file)
+        st.download_button("Generate Keyword List Document", data=keyword_output, file_name="keywords used in governance model.xlsx")
 
 with col2:
     st.header("Upload Dynamic Authorization Model")
