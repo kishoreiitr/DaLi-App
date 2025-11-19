@@ -191,18 +191,20 @@ def generate_keyword_analysis(file):
     df_rules = df_rules[df_rules["IS ENABLED?"] == "Yes"]
     df_rules["DEFINITION"] = df_rules["DEFINITION"].astype(str).str.strip()
 
-    results = []
-    for keyword in keywords:
-        count = df_rules[df_rules["DEFINITION"].str.contains(keyword, case=False, na=False)]["NAME"].nunique()
+
+results = []
+for keyword in keywords:
+    count = df_rules[df_rules["DEFINITION"].str.contains(keyword, case=False, na=False)]["NAME"].nunique()
+    if count > 0:  # ✅ Only include keywords that are used
         results.append({"Keyword": keyword, "Count of Matching Rules": count})
 
-    # ✅ Handle empty or mismatched cases safely
-    df_output = pd.DataFrame(results)
+# Create DataFrame only with used keywords
+df_output = pd.DataFrame(results)
+if not df_output.empty:
+    df_output = df_output.sort_values(by="Count of Matching Rules", ascending=False)
+else:
+    df_output = pd.DataFrame([{"Keyword": "No matches found", "Count of Matching Rules": 0}])
 
-    if not df_output.empty and "Count of Matching Rules" in df_output.columns:
-        df_output = df_output.sort_values(by="Count of Matching Rules", ascending=False)
-    else:
-        df_output = pd.DataFrame([{"Keyword": "No matches found", "Count of Matching Rules": 0}])
 
     return write_clean_excel(df_output)
 
